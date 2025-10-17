@@ -32,7 +32,7 @@
               <object class="GtkRevealer">
                 <property name="transition-type">slide-up</property>
                 <property name="reveal-child" bind-source="PaplChatHistory"
-                  bind-property="sticky" bind-flags="sync-create|invert-boolean"/>
+                  bind="sticky" bind-flags="sync-create|invert-boolean"/>
                 <property name="valign">end</property>
                 <property name="halign">end</property>
                 <child>

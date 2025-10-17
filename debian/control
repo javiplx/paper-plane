@@ -1,9 +1,12 @@
 Source: paper-plane
 Priority: optional
 Maintainer: Javier Palacios <javiplx@gmail.com>
-Build-Depends: debhelper, cargo, meson, libglib2.0-dev, librust-gtk4-dev, libadwaita-1-dev, libshumate-dev
+Build-Depends: debhelper, rustc, meson, libglib2.0-dev, librust-gtk4-dev, libadwaita-1-dev, libshumate-dev
+# tdlib
+#glib-2.0, shumate-1.0
 
 Package: paper-plane
+#Section: Newsgroups
 Architecture: all
 Depends: ${misc:Depends}
 Description: Chat over Telegram on a modern and elegant client
