@@ -218,8 +218,8 @@
                         <binding name="chat-list">
                           <lookup name="selected-chat-list">folder_bar</lookup>
                         </binding>
-                        <property name="selected-chat" bind-source="PaplSidebar" bind-property="selected-chat" bind-flags="sync-create|bidirectional"/>
-                        <property name="compact" bind-source="PaplSidebar" bind-property="compact" bind-flags="sync-create"/>
+                        <property name="selected-chat" bind-source="PaplSidebar" bind="selected-chat" bind-flags="sync-create|bidirectional"/>
+                        <property name="compact" bind-source="PaplSidebar" bind="compact" bind-flags="sync-create"/>
                       </object>
                     </child>
 
@@ -293,8 +293,8 @@
                             <lookup name="session">PaplSidebar</lookup>
                           </lookup>
                         </binding>
-                        <property name="selected-chat" bind-source="PaplSidebar" bind-property="selected-chat" bind-flags="sync-create|bidirectional"/>
-                        <property name="compact" bind-source="PaplSidebar" bind-property="compact" bind-flags="sync-create"/>
+                        <property name="selected-chat" bind-source="PaplSidebar" bind="selected-chat" bind-flags="sync-create|bidirectional"/>
+                        <property name="compact" bind-source="PaplSidebar" bind="compact" bind-flags="sync-create"/>
                       </object>
                     </child>
 
