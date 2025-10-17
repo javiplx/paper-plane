@@ -1,0 +1,15 @@
+Source: paper-plane
+Priority: optional
+Maintainer: Javier Palacios <javiplx@gmail.com>
+Build-Depends: debhelper, libtd-dev,
+  meson, cargo,
+  libglib2.0-dev, libgtk-4-dev, libadwaita-1-dev, libshumate-dev, librlottie-dev,
+  blueprint-compiler, gettext, desktop-file-utils, libxml2-utils, rust-clippy
+
+Package: paper-plane
+Section: Misc
+Architecture: all
+Depends: ${misc:Depends}
+Description: Chat over Telegram on a modern and elegant client
+ Paper Plane is an alternative Telegram   .
+ It uses libadwaita for its user interface and strives to meet the design principles of the GNOME desktop.
