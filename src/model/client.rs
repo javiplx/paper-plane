@@ -12,7 +12,9 @@ use gtk::subclass::prelude::*;
 
 use crate::config;
 use crate::model;
+use crate::types::ClientId;
 use crate::utils;
+use crate::APPLICATION_OPTS;
 
 /// A struct for storing information about a session's database.
 #[derive(Clone, Debug)]
@@ -35,7 +37,7 @@ mod imp {
         #[property(get, set, construct_only)]
         pub(super) remove_if_auth: OnceCell<bool>,
         #[property(get, set, construct_only)]
-        pub(super) id: OnceCell<i32>,
+        pub(super) id: OnceCell<ClientId>,
         #[property(get, set, construct_only)]
         pub(super) database_info: OnceCell<model::BoxedDatabaseInfo>,
         #[property(get)]
@@ -80,13 +82,13 @@ impl Client {
     pub(crate) fn new(
         client_manager: &model::ClientManager,
         remove_if_auth: bool,
-        client_id: i32,
+        id: ClientId,
         database_info: model::DatabaseInfo,
     ) -> Self {
         glib::Object::builder()
             .property("client-manager", client_manager)
             .property("remove-if-auth", remove_if_auth)
-            .property("id", client_id)
+            .property("id", id)
             .property("database-info", model::BoxedDatabaseInfo(database_info))
             .build()
     }
@@ -168,6 +170,8 @@ impl Client {
             .expect("Data directory path is not a valid unicode string")
             .into();
 
+        let application_opts = APPLICATION_OPTS.get().unwrap();
+
         tdlib::functions::set_tdlib_parameters(
             database_info.use_test_dc,
             database_directory,
@@ -177,8 +181,8 @@ impl Client {
             true,
             true,
             true,
-            config::TG_API_ID,
-            config::TG_API_HASH.into(),
+            application_opts.client_id,
+            application_opts.client_secret.to_string(),
             system_language_code,
             "Desktop".into(),
             String::new(),

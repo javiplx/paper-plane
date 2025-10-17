@@ -5,6 +5,7 @@ use gtk::glib;
 use crate::i18n::gettext_f;
 use crate::i18n::ngettext_f;
 use crate::model;
+use crate::types::MessageId;
 use crate::utils;
 
 pub(crate) fn chat_action(action: &model::ChatAction) -> String {
@@ -490,7 +491,7 @@ pub(crate) fn message_content(message: &model::Message) -> String {
                 .member_user_ids
                 .into_iter()
                 .map(|id| chat.session_().user(id))
-                .collect();
+                .collect::<Vec<_>>();
             message_chat_add_members(&sender, &added_users)
         }
         MessageChatJoinByLink => message_chat_join_by_link(&sender),
@@ -729,10 +730,7 @@ fn message_chat_delete_photo(chat: &model::Chat, sender: &model::MessageSender) 
     }
 }
 
-fn message_chat_add_members(
-    sender: &model::MessageSender,
-    added_users: &Vec<model::User>,
-) -> String {
+fn message_chat_add_members(sender: &model::MessageSender, added_users: &[model::User]) -> String {
     let sender_string = message_sender(sender, true);
     if sender.as_user().map(model::User::id) == added_users.first().map(model::User::id) {
         gettext_f("{sender} joined the group", &[("sender", &sender_string)])
@@ -825,16 +823,12 @@ fn message_game_score(
     }
 }
 
-fn message_pin_message(
-    message_id: i64,
-    chat: &model::Chat,
-    sender: &model::MessageSender,
-) -> String {
+fn message_pin_message(id: MessageId, chat: &model::Chat, sender: &model::MessageSender) -> String {
     use tdlib::enums::MessageContent::*;
 
     // TODO: Add a way to retrieve the message and update the string
     // in case we don't have the message stored locally.
-    let string = match chat.message(message_id) {
+    let string = match chat.message(id) {
         Some(message) => match message.content().0 {
             MessageText(data) => {
                 const TEXT_LENGTH: usize = 32;

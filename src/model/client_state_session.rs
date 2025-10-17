@@ -10,6 +10,9 @@ use glib::Properties;
 use gtk::glib;
 
 use crate::model;
+use crate::types::ChatId;
+use crate::types::SecretChatId;
+use crate::types::UserId;
 use crate::utils;
 
 mod imp {
@@ -23,7 +26,8 @@ mod imp {
         pub(super) basic_groups: RefCell<HashMap<i64, model::BasicGroup>>,
         pub(super) supergroups: RefCell<HashMap<i64, model::Supergroup>>,
         pub(super) secret_chats: RefCell<HashMap<i32, model::SecretChat>>,
-        pub(super) downloading_files: RefCell<HashMap<i32, Vec<glib::Sender<tdlib::types::File>>>>,
+        pub(super) downloading_files:
+            RefCell<HashMap<i32, Vec<async_channel::Sender<tdlib::types::File>>>>,
 
         #[property(get, set, construct_only)]
         pub(super) client: glib::WeakRef<model::Client>,
@@ -134,8 +138,8 @@ impl ClientStateSession {
     }
 
     /// Returns the `model::Chat` of the specified id, if present.
-    pub(crate) fn try_chat(&self, chat_id: i64) -> Option<model::Chat> {
-        self.imp().chats.borrow().get(&chat_id).cloned()
+    pub(crate) fn try_chat(&self, id: ChatId) -> Option<model::Chat> {
+        self.imp().chats.borrow().get(&id).cloned()
     }
 
     /// Returns the `model::Chat` of the specified id. Panics if the chat is not present.
@@ -143,8 +147,8 @@ impl ClientStateSession {
     /// Note that TDLib guarantees that types are always returned before their ids,
     /// so if you use an id returned by TDLib, it should be expected that the
     /// relative `model::Chat` exists in the list.
-    pub(crate) fn chat(&self, chat_id: i64) -> model::Chat {
-        self.try_chat(chat_id)
+    pub(crate) fn chat(&self, id: ChatId) -> model::Chat {
+        self.try_chat(id)
             .expect("Failed to get expected model::Chat")
     }
 
@@ -170,7 +174,7 @@ impl ClientStateSession {
     /// Note that TDLib guarantees that types are always returned before their ids,
     /// so if you use an id returned by TDLib, it should be expected that the
     /// relative `model::User` exists in the list.
-    pub(crate) fn user(&self, user_id: i64) -> model::User {
+    pub(crate) fn user(&self, user_id: UserId) -> model::User {
         self.imp().users.borrow().get(&user_id).unwrap().clone()
     }
 
@@ -207,11 +211,11 @@ impl ClientStateSession {
     /// Note that TDLib guarantees that types are always returned before their ids,
     /// so if you use an id returned by TDLib, it should be expected that the
     /// relative `model::SecretChat` exists in the list.
-    pub(crate) fn secret_chat(&self, secret_chat_id: i32) -> model::SecretChat {
+    pub(crate) fn secret_chat(&self, id: SecretChatId) -> model::SecretChat {
         self.imp()
             .secret_chats
             .borrow()
-            .get(&secret_chat_id)
+            .get(&id)
             .expect("Failed to get expected model::SecretChat")
             .clone()
     }
@@ -292,12 +296,15 @@ impl ClientStateSession {
         file_id: i32,
         f: F,
     ) {
-        let (sender, receiver) =
-            glib::MainContext::channel::<tdlib::types::File>(glib::Priority::DEFAULT);
-        receiver.attach(None, move |file| {
-            let is_downloading_active = file.local.is_downloading_active;
-            f(file);
-            glib::ControlFlow::from(is_downloading_active)
+        let (sender, receiver) = async_channel::unbounded::<tdlib::types::File>();
+
+        glib::spawn_future_local(async move {
+            while let Ok(file) = receiver.recv().await {
+                if !file.local.is_downloading_active {
+                    break;
+                }
+                f(file);
+            }
         });
 
         let mut downloading_files = self.imp().downloading_files.borrow_mut();
@@ -369,9 +376,8 @@ impl ClientStateSession {
             // an error in the `SyncSender::send()` function if
             // `default-return glib::Continue(false)` is used. In the latter case, the Receiver
             // will be detached from the main context, which will cause the sending to fail.
-            entry
-                .get_mut()
-                .retain(|sender| sender.send(file.clone()).is_ok());
+            entry.get_mut();
+            // .retain(|sender| sender.send(file.clone()).is_ok());
 
             if !file.local.is_downloading_active || entry.get().is_empty() {
                 entry.remove();

@@ -6,6 +6,7 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 
 use crate::model;
+use crate::types::MessageId;
 
 mod imp {
     use super::*;
@@ -14,7 +15,9 @@ mod imp {
     #[properties(wrapper_type = super::SponsoredMessage)]
     pub(crate) struct SponsoredMessage {
         #[property(get, set, construct_only)]
-        pub(super) message_id: OnceCell<i64>,
+        pub(super) chat: OnceCell<model::Chat>,
+        #[property(get, set, construct_only)]
+        pub(super) message_id: OnceCell<MessageId>,
         #[property(get, set, construct_only)]
         pub(super) content: OnceCell<model::BoxedMessageContent>,
         #[property(get, set, construct_only)]
@@ -47,13 +50,13 @@ glib::wrapper! {
 }
 
 impl SponsoredMessage {
-    fn new(
-        sponsored_message: tdlib::types::SponsoredMessage,
-        session: &model::ClientStateSession,
-    ) -> Self {
+    fn new(chat: &model::Chat, sponsored_message: tdlib::types::SponsoredMessage) -> Self {
         use tdlib::enums::MessageSponsorType::*;
 
+        let session = chat.session_();
+
         glib::Object::builder()
+            .property("chat", chat)
             .property("message-id", sponsored_message.message_id)
             .property(
                 "content",
@@ -71,18 +74,15 @@ impl SponsoredMessage {
             .build()
     }
 
-    pub(crate) async fn request(
-        chat_id: i64,
-        session: &model::ClientStateSession,
-    ) -> Result<Option<Self>, tdlib::types::Error> {
-        tdlib::functions::get_chat_sponsored_messages(chat_id, session.client_().id())
+    pub(crate) async fn request(chat: &model::Chat) -> Result<Option<Self>, tdlib::types::Error> {
+        tdlib::functions::get_chat_sponsored_messages(chat.id(), chat.session_().client_().id())
             .await
             .map(
                 |tdlib::enums::SponsoredMessages::SponsoredMessages(mut sponsored_messages)| {
                     sponsored_messages
                         .messages
                         .pop()
-                        .map(|sponsored_message| Self::new(sponsored_message, session))
+                        .map(|sponsored_message| Self::new(chat, sponsored_message))
                 },
             )
     }

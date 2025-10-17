@@ -1,11 +1,11 @@
 use std::cell::Cell;
 use std::cell::OnceCell;
 use std::cell::RefCell;
+use std::sync::OnceLock;
 
 use anyhow::anyhow;
 use gettextrs::gettext;
 use glib::clone;
-use glib::once_cell::sync::Lazy;
 use gtk::gio;
 use gtk::glib;
 use gtk::prelude::*;
@@ -16,6 +16,7 @@ use crate::expressions;
 use crate::i18n::gettext_f;
 use crate::model;
 use crate::strings;
+use crate::types::MessageId;
 use crate::ui;
 use crate::utils;
 
@@ -169,12 +170,12 @@ mod imp {
 
     impl ObjectImpl for ChatActionBar {
         fn properties() -> &'static [glib::ParamSpec] {
-            static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
+            static PROPERTIES: OnceLock<Vec<glib::ParamSpec>> = OnceLock::new();
+            PROPERTIES.get_or_init(|| {
                 vec![glib::ParamSpecObject::builder::<model::Chat>("chat")
                     .explicit_notify()
                     .build()]
-            });
-            PROPERTIES.as_ref()
+            })
         }
 
         fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
@@ -417,11 +418,11 @@ impl ChatActionBar {
         }
     }
 
-    fn load_message_to_edit(&self, message_id: i64) {
+    fn load_message_to_edit(&self, id: MessageId) {
         if let Some(chat) = self.chat() {
             let client_id = chat.session_().client_().id();
 
-            if let Some(message) = chat.message(message_id) {
+            if let Some(message) = chat.message(id) {
                 match message.content().0 {
                     tdlib::enums::MessageContent::MessageText(data) => {
                         utils::block_on(async move {
@@ -572,7 +573,7 @@ impl ChatActionBar {
             notifications.use_default_mute_for = false;
             if notifications.mute_for == 0 {
                 let now = glib::DateTime::now_utc().unwrap().to_unix() as i32;
-                notifications.mute_for = std::i32::MAX - now
+                notifications.mute_for = i32::MAX - now
             } else {
                 notifications.mute_for = 0
             }
@@ -755,12 +756,12 @@ impl ChatActionBar {
         self.notify("chat");
     }
 
-    pub(crate) fn reply_to_message_id(&self, message_id: i64) {
-        self.set_state(ChatActionBarState::Replying(message_id));
+    pub(crate) fn reply_to_message_id(&self, id: MessageId) {
+        self.set_state(ChatActionBarState::Replying(id));
     }
 
-    pub(crate) fn edit_message_id(&self, message_id: i64) {
-        self.set_state(ChatActionBarState::Editing(message_id));
+    pub(crate) fn edit_message_id(&self, id: MessageId) {
+        self.set_state(ChatActionBarState::Editing(id));
     }
 
     fn update_stack_page(&self) {

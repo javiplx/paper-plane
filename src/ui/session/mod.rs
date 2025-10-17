@@ -5,9 +5,10 @@ mod row;
 mod sidebar;
 mod switcher;
 
+use std::sync::OnceLock;
+
 use adw::subclass::prelude::*;
 use glib::clone;
-use glib::once_cell::sync::Lazy;
 use gtk::gdk;
 use gtk::glib;
 use gtk::prelude::*;
@@ -60,6 +61,7 @@ pub(crate) use self::sidebar::Selection as SidebarSelection;
 pub(crate) use self::sidebar::Sidebar;
 pub(crate) use self::switcher::Switcher;
 use crate::model;
+use crate::types::ChatId;
 use crate::ui;
 use crate::utils;
 
@@ -107,7 +109,6 @@ mod imp {
                 gdk::Key::F,
                 gdk::ModifierType::CONTROL_MASK | gdk::ModifierType::SHIFT_MASK,
                 "session.begin-chats-search",
-                None,
             );
             klass.install_action("session.begin-chats-search", None, |widget, _, _| {
                 widget.begin_chats_search();
@@ -117,7 +118,6 @@ mod imp {
                 gdk::Key::v,
                 gdk::ModifierType::CONTROL_MASK,
                 "session.paste",
-                None,
             );
             klass.install_action("session.paste", None, move |widget, _, _| {
                 widget.handle_paste_action();
@@ -131,14 +131,14 @@ mod imp {
 
     impl ObjectImpl for Session {
         fn properties() -> &'static [glib::ParamSpec] {
-            static PROPERTIES: Lazy<Vec<glib::ParamSpec>> = Lazy::new(|| {
+            static PROPERTIES: OnceLock<Vec<glib::ParamSpec>> = OnceLock::new();
+            PROPERTIES.get_or_init(|| {
                 vec![
                     glib::ParamSpecObject::builder::<model::ClientStateSession>("model")
                         .construct_only()
                         .build(),
                 ]
-            });
-            PROPERTIES.as_ref()
+            })
         }
 
         fn set_property(&self, _id: usize, value: &glib::Value, pspec: &glib::ParamSpec) {
@@ -177,11 +177,11 @@ impl Session {
         self.imp().model.upgrade()
     }
 
-    pub(crate) fn select_chat(&self, chat_id: i64) {
-        match self.model().unwrap().try_chat(chat_id) {
+    pub(crate) fn select_chat(&self, id: ChatId) {
+        match self.model().unwrap().try_chat(id) {
             Some(chat) => self.imp().sidebar.set_selected_chat(Some(&chat)),
             None => utils::spawn(clone!(@weak self as obj => async move {
-                match tdlib::functions::create_private_chat(chat_id, true, obj.model().unwrap().client_().id()).await {
+                match tdlib::functions::create_private_chat(id, true, obj.model().unwrap().client_().id()).await {
                     Ok(tdlib::enums::Chat::Chat(data)) => obj.imp().sidebar.set_selected_chat(obj.model().unwrap().try_chat(data.id).as_ref()),
                     Err(e) => log::warn!("Failed to create private chat: {:?}", e),
                 }
